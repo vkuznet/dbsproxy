@@ -87,8 +87,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 			rurl := fmt.Sprintf("%s/%s?%s", srv, api, r.URL.RawQuery)
 			// adjust raw url with new timestamp ranges
 			if !strings.Contains(r.URL.RawQuery, "create_by") {
-				crange := fmt.Sprintf("%d-%d", prev, ts)
-				rurl = fmt.Sprintf("%s/%s?%s&create_by=%s", srv, api, r.URL.RawQuery, crange)
+				rurl = fmt.Sprintf("%s/%s?%s&min_cdate=%d&max_cdate", srv, api, r.URL.RawQuery, prev, ts)
 			}
 			go send(rurl, w, r, &wg)
 			prev = ts
