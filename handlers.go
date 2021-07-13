@@ -1,8 +1,8 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
-	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -20,7 +20,8 @@ func getServer() string {
 }
 
 // helper function to send request to backend server
-func send(rurl string, w http.ResponseWriter, r *http.Request, wg *sync.WaitGroup) error {
+// func send(rurl string, w http.ResponseWriter, r *http.Request, wg *sync.WaitGroup) error {
+func send(rurl string, ch chan []byte, r *http.Request, wg *sync.WaitGroup) error {
 	defer wg.Done()
 	// send HTTP request to backend server
 	client := http.Client{}
@@ -36,13 +37,42 @@ func send(rurl string, w http.ResponseWriter, r *http.Request, wg *sync.WaitGrou
 	if err != nil {
 		return err
 	}
-	// write response directly to our writer
+	// we scan our ndjson records and send over individual JSON records to our channel
 	defer resp.Body.Close()
-	bytes, err := io.Copy(w, resp.Body)
-	if Config.Verbose > 0 {
-		log.Printf("%s receive %d bytes", rurl, bytes)
+	scanner := bufio.NewScanner(resp.Body)
+	scanner.Buffer([]byte{}, Config.BufferSize)
+	for scanner.Scan() {
+		line := scanner.Text()
+		ch <- []byte(line)
 	}
-	return err
+	if err := scanner.Err(); err != nil {
+		log.Println("scanner error", err)
+		return err
+	}
+
+	return nil
+}
+
+// helper function to collect results from goroutines and write them to reponse writer
+func collect(w http.ResponseWriter, ch chan []byte, terminate chan bool) {
+	w.Write([]byte("[\n"))
+	defer w.Write([]byte("]\n"))
+	var sep bool
+	for {
+		select {
+		case data := <-ch:
+			if sep {
+				w.Write([]byte(","))
+			}
+			w.Write(data)
+			w.Write([]byte("\n"))
+			sep = true
+		case <-terminate:
+			return
+		default:
+			time.Sleep(time.Duration(1) * time.Millisecond) // wait for response
+		}
+	}
 }
 
 // ProxyHandler provides basic functionality of status response
@@ -58,13 +88,11 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 
 	// extract api of the request
 	arr := strings.Split(r.URL.Path, "/")
-	log.Println("URL path", r.URL.Path, arr)
 	api := arr[len(arr)-1]
 
 	// find if our api maps contains proper set of timestamps
 	var tstamps []int64
 	for _, amap := range Config.APIRedirects {
-		log.Println("amap", amap, api)
 		if amap.Api == api {
 			tstamps = amap.Timestamps
 			// add current timestamp as last entry in tstamps array
@@ -74,9 +102,10 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	// if timestamps found we'll adjust request URL, otherwise we'll simply redirect to BE server
 	if len(tstamps) > 0 {
-		// for GET HTTP calls we'll use api redirect mapping
-		w.Write([]byte("[\n"))
-		defer w.Write([]byte("]\n"))
+		// collect data from goroutines and organize JSON stream
+		ch := make(chan []byte)      // this channel collects individual JSON records
+		terminate := make(chan bool) // this channel terminates collect goroutine
+		go collect(w, ch, terminate)
 
 		// send goroutines to DBS backend servers
 		var wg sync.WaitGroup
@@ -87,12 +116,14 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 			rurl := fmt.Sprintf("%s/%s?%s", srv, api, r.URL.RawQuery)
 			// adjust raw url with new timestamp ranges
 			if !strings.Contains(r.URL.RawQuery, "create_by") {
-				rurl = fmt.Sprintf("%s/%s?%s&min_cdate=%d&max_cdate", srv, api, r.URL.RawQuery, prev, ts)
+				rurl = fmt.Sprintf("%s/%s?%s&min_cdate=%d&max_cdate=%d", srv, api, r.URL.RawQuery, prev, ts)
 			}
-			go send(rurl, w, r, &wg)
+			go send(rurl, ch, r, &wg)
 			prev = ts
 		}
 		wg.Wait()
+		// once we received all goroutines send calls we'll terminate collect goroutine
+		terminate <- true
 	} else {
 		reverseProxy(srv, w, r)
 	}

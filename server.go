@@ -34,6 +34,7 @@ type Configuration struct {
 	ServerCrt    string       `json:"server_cert"`  // path to server crt file
 	ServerKey    string       `json:"server_key"`   // path to server key file
 	APIRedirects []APIMapping `json:"api_redirects"`
+	BufferSize   int          `json:"scanner_buffer_size"` // buffer size of the scanner
 }
 
 // Config variable represents configuration object
@@ -50,6 +51,9 @@ func parseConfig(configFile string) error {
 	if err != nil {
 		log.Println("Unable to parse", err)
 		return err
+	}
+	if Config.BufferSize == 0 {
+		Config.BufferSize = 1024 * 1024
 	}
 	return nil
 }
