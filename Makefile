@@ -10,7 +10,7 @@ vet:
 build:
 	go clean; rm -rf pkg dbsproxy*; go build ${flags}
 
-build_all: build build_darwin build_amd64 build_power8 build_arm64
+build_all: build build_darwin build_amd64 build_power8 build_arm64 build_windows
 
 build_darwin:
 	go clean; rm -rf pkg dbsproxy_darwin; GOOS=darwin go build ${flags}
@@ -27,6 +27,10 @@ build_power8:
 build_arm64:
 	go clean; rm -rf pkg dbsproxy_arm64; GOARCH=arm64 GOOS=linux go build ${flags}
 	mv dbsproxy dbsproxy_arm64
+
+build_windows:
+	go clean; rm -rf pkg dbsproxy_windows; GOARCH=amd64 GOOS=windows go build ${flags}
+	mv dbsproxy dbsproxy_windows
 
 install:
 	go install
