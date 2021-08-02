@@ -25,15 +25,15 @@ jobs:
         GOPATH: /home/runner/go
       run: |
         echo "AMD64 build"
-        make build_amd64; mv dbsproxy dbsproxy_amd64
+        make build_amd64
         echo "ARM64 build"
-        make build_arm64; mv dbsproxy dbsproxy_arm64
+        make build_arm64
         echo "power8 build"
-        make build_power8; mv dbsproxy dbsproxy_power8
+        make build_power8
         echo "Darwin build"
-        make build_darwin; mv dbsproxy dbsproxy_darwin
+        make build_darwin
         echo "Windows build"
-        make build_windows; mv dbsproxy dbsproxy_windows
+        make build_windows
         tar cfz dbsproxy.tar.gz dbsproxy_*
 
     - name: Create Release
