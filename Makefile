@@ -30,7 +30,7 @@ build_arm64:
 
 build_windows:
 	go clean; rm -rf pkg dbsproxy_windows; GOARCH=amd64 GOOS=windows go build ${flags}
-	mv dbsproxy dbsproxy_windows
+	mv dbsproxy.exe dbsproxy_windows
 
 install:
 	go install
