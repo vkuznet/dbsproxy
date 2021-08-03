@@ -77,6 +77,9 @@ func collect(w http.ResponseWriter, ch chan []byte, terminate chan bool) {
 
 // ProxyHandler provides basic functionality of status response
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	defer log.Println("%s %s %v", r.Method, r.RequestURI, time.Since(start))
+
 	// get random DBS Backend server
 	srv := getServer()
 
