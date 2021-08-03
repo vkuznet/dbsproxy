@@ -23,7 +23,7 @@ func getServer() string {
 // func send(rurl string, w http.ResponseWriter, r *http.Request, wg *sync.WaitGroup) error {
 func send(rurl string, ch chan []byte, r *http.Request, wg *sync.WaitGroup) error {
 	start := time.Now()
-	defer log.Println("send %s %v", r, time.Since(start))
+	defer log.Printf("send %s %v", r, time.Since(start))
 	defer wg.Done()
 	// send HTTP request to backend server
 	client := http.Client{}
@@ -58,7 +58,7 @@ func send(rurl string, ch chan []byte, r *http.Request, wg *sync.WaitGroup) erro
 // helper function to collect results from goroutines and write them to reponse writer
 func collect(w http.ResponseWriter, ch chan []byte, terminate chan bool) {
 	start := time.Now()
-	defer log.Println("collect %v", time.Since(start))
+	defer log.Printf("collect %v", time.Since(start))
 	w.Write([]byte("[\n"))
 	defer w.Write([]byte("]\n"))
 	var sep bool
@@ -82,7 +82,7 @@ func collect(w http.ResponseWriter, ch chan []byte, terminate chan bool) {
 // ProxyHandler provides basic functionality of status response
 func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	defer log.Println("%s %s %v", r.Method, r.RequestURI, time.Since(start))
+	defer log.Printf("%s %s %v", r.Method, r.RequestURI, time.Since(start))
 
 	// get random DBS Backend server
 	srv := getServer()
