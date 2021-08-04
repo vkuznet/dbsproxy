@@ -23,7 +23,7 @@ func getServer() string {
 // func send(rurl string, w http.ResponseWriter, r *http.Request, wg *sync.WaitGroup) error {
 func send(rurl string, ch chan []byte, r *http.Request, wg *sync.WaitGroup) error {
 	start := time.Now()
-	defer log.Printf("send %s %v", r, time.Since(start))
+	defer log.Printf("send %s %v", rurl, time.Since(start))
 	defer wg.Done()
 	// send HTTP request to backend server
 	client := http.Client{}
@@ -56,9 +56,8 @@ func send(rurl string, ch chan []byte, r *http.Request, wg *sync.WaitGroup) erro
 }
 
 // helper function to collect results from goroutines and write them to reponse writer
-func collect(w http.ResponseWriter, ch chan []byte, terminate chan bool) {
+func collect(w http.ResponseWriter, r *http.Request, ch chan []byte, terminate chan bool) {
 	start := time.Now()
-	defer log.Printf("collect %v", time.Since(start))
 	w.Write([]byte("[\n"))
 	defer w.Write([]byte("]\n"))
 	var sep bool
@@ -72,6 +71,7 @@ func collect(w http.ResponseWriter, ch chan []byte, terminate chan bool) {
 			w.Write([]byte("\n"))
 			sep = true
 		case <-terminate:
+			log.Printf("collect %s %v", r.RequestURI, time.Since(start))
 			return
 		default:
 			time.Sleep(time.Duration(1) * time.Millisecond) // wait for response
@@ -112,7 +112,7 @@ func ProxyHandler(w http.ResponseWriter, r *http.Request) {
 		// collect data from goroutines and organize JSON stream
 		ch := make(chan []byte)      // this channel collects individual JSON records
 		terminate := make(chan bool) // this channel terminates collect goroutine
-		go collect(w, ch, terminate)
+		go collect(w, r, ch, terminate)
 
 		// send goroutines to DBS backend servers
 		var wg sync.WaitGroup
